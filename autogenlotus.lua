@@ -1,4 +1,3 @@
-
 if _G.LotusAutoGenRunning then return end
 _G.LotusAutoGenRunning = true
 
@@ -10,12 +9,12 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local lp = Players.LocalPlayer
 
-
 local Config = {
-    MaxPuzzles = 15,             -- Number of puzzles
-    PromptDelay = 0.05,          -- Delay of proximity prompt or shii
-    ActionDelay = 0.15,          -- RE delay
-    TeleportOffset = Vector3.new(0, 0, -2) -- offset shii of da center
+    MaxPuzzles = 15,
+    PromptDelay = 0.05,
+    ActionDelay = 0.15,
+    TeleportOffset = Vector3.new(0, 0, -2),
+    InactivityTimeout = 60
 }
 
 local puzzlesCompleted = 0
@@ -82,7 +81,6 @@ ScreenGui.ResetOnSpawn = false
 local successGui, errGui = pcall(function() ScreenGui.Parent = CoreGui end)
 if not successGui then ScreenGui.Parent = lp:WaitForChild("PlayerGui") end
 
--- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 240, 0, 130)
 MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -198,12 +196,16 @@ local function initiateServerRotation()
 end
 
 task.spawn(function()
+    local lastActivityTime = tick()
+
     while puzzlesCompleted < Config.MaxPuzzles do
         if automationEnabled then
             local mapFolder = Workspace:FindFirstChild("Map") 
                 and Workspace.Map:FindFirstChild("Ingame") 
                 and Workspace.Map.Ingame:FindFirstChild("Map")
                 
+            local trackingActiveGens = false
+
             if mapFolder then
                 for _, genNode in ipairs(mapFolder:GetChildren()) do
                     if puzzlesCompleted >= Config.MaxPuzzles or not automationEnabled then break end
@@ -214,6 +216,7 @@ task.spawn(function()
                         local currentProgress = progressAttr or (progressInstance and progressInstance.Value) or 0
                         
                         if currentProgress < 100 then
+                            trackingActiveGens = true
                             local positions = genNode:FindFirstChild("Positions")
                             local centerNode = positions and positions:FindFirstChild("Center")
                             local char = lp.Character
@@ -247,9 +250,25 @@ task.spawn(function()
                         end
                     end
                 end
+            end
+
+            if trackingActiveGens then
+                lastActivityTime = tick()
             else
+                local timeSpentIdle = tick() - lastActivityTime
+                if timeSpentIdle >= Config.InactivityTimeout then
+                    print("[Automation]: Autogen stalled/idle for " .. tostring(Config.InactivityTimeout) .. "s. Initiating immediate fallback server rotation...")
+                    initiateServerRotation()
+                    return
+                end
+            end
+
+            if not mapFolder then
                 task.wait(1)
             end
+        else
+            lastActivityTime = tick()
+            task.wait(1)
         end
         task.wait(0.5)
     end
