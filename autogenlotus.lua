@@ -1,3 +1,4 @@
+
 if _G.LotusAutoGenRunning then return end
 _G.LotusAutoGenRunning = true
 
@@ -9,22 +10,24 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local lp = Players.LocalPlayer
 
+
 local Config = {
-    MaxPuzzles = 15,             -- Number of puzzle
+    MaxPuzzles = 15,             -- Number of puzzles
     PromptDelay = 0.05,          -- Delay of proximity prompt or shii
     ActionDelay = 0.15,          -- RE delay
-    TeleportOffset = Vector3.new(0, 0, -2) -- ofset shii of da center
+    TeleportOffset = Vector3.new(0, 0, -2) -- offset shii of da center
 }
 
 local puzzlesCompleted = 0
 local automationEnabled = true
 local scriptUrl = "https://raw.githubusercontent.com/fjqe/lotus/refs/heads/main/autogenlotus.lua"
+local webhookUrl = "https://discord.com/api/webhooks/1512529137149939933/_rorxH427U0y4hj9MMqhD_-J8iiwFtI5afDpN1RsdfUeI-FfH7in6IhNqdjzXH52iQ-k"
 
 local function armTeleportQueue()
     local queueFunction = queue_on_teleport or (syn and syn.queue_on_teleport)
     if queueFunction then
         local payload = string.format([[
-            task.wait(4) -- Safe buffer allowing local character instances and workspace files to load
+            task.wait(4) 
             pcall(function()
                 loadstring(game:HttpGet("%s"))()
             end)
@@ -37,6 +40,40 @@ local function armTeleportQueue()
 end
 
 armTeleportQueue()
+
+local function sendWebhookNotification()
+    local requestFunc = request or http_request or (syn and syn.request)
+    if requestFunc then
+        local payloadData = {
+            username = "Lotus System Logs",
+            embeds = {
+                {
+                    title = "Finished.",
+                    description = "Successfully finished generator cycle and preparing to serverhop...",
+                    color = 6592140, 
+                    fields = {
+                        { name = "Account Account", value = "`" .. lp.Name .. "`", inline = true },
+                        { name = "Completed Puzzles", value = "`" .. tostring(puzzlesCompleted) .. " / " .. tostring(Config.MaxPuzzles) .. "`", inline = true },
+                        { name = "Current Place ID", value = "`" .. tostring(game.PlaceId) .. "`", inline = true }
+                    },
+                    footer = { text = "lotus // autogen freemium" },
+                    timestamp = DateTime.now():ToIsoDate()
+                }
+            }
+        }
+        
+        pcall(function()
+            requestFunc({
+                Url = webhookUrl,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payloadData)
+            })
+        end)
+    end
+end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LotusAutomationUI"
@@ -113,13 +150,14 @@ ToggleButton.MouseButton1Click:Connect(function()
 end)
 
 local function updateUI()
-    StatusLabel.Text = "Puzzles: " .. tostring(puzzlesCompleted) .. " / " .. tostring(Config.MaxPuzzles)
+    StatusLabel.Text = "gens: " .. tostring(puzzlesCompleted) .. " / " .. tostring(Config.MaxPuzzles)
 end
 
 local function initiateServerRotation()
-    StatusLabel.Text = "Finding new server instance..."
+    StatusLabel.Text = "fining new server instance..."
     StatusLabel.TextColor3 = Color3.fromRGB(230, 180, 80)
-    print("[Automation]: Target met. Executing public instance server hop...")
+    print("server hop...")
+    sendWebhookNotification()
     
     local serverListUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
     
